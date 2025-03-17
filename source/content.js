@@ -1,27 +1,26 @@
 const VOLUME_UP_KEY = 'ArrowUp';
 const VOLUME_DOWN_KEY = 'ArrowDown';
 const VOLUME_STEP = 0.05;
-// Get the Twitch player instance
 let twitchPlayer = null;
+let removeTimeout = null;
+
 function run() {
 	twitchPlayer = getTwitchPlayer();
-	setUpVolumeText();
+	waitForElm('.persistent-player').then(() => {
+		setUpVolumeText();
+	});
 }
 
 document.addEventListener('DOMContentLoaded', run);
-// Add event listener for keypresses
 document.addEventListener('keydown', event => {
-	// Only proceed if we're not typing in an input field
 	if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA' || event.target.isContentEditable) {
 		return;
 	}
 
-	twitchPlayer ||= getTwitchPlayer();
+	twitchPlayer = getTwitchPlayer();
 
-	// Handle volume control based on keypresses
 	switch (event.key) {
 		case VOLUME_UP_KEY: {
-			// Increase volume
 			const newVolumeUp = Math.min(1, twitchPlayer.getVolume() + VOLUME_STEP);
 			changeVolumeText(newVolumeUp);
 			twitchPlayer.setVolume(newVolumeUp);
@@ -30,7 +29,6 @@ document.addEventListener('keydown', event => {
 		}
 
 		case VOLUME_DOWN_KEY: {
-			// Decrease volume
 			const newVolumeDown = Math.max(0, twitchPlayer.getVolume() - VOLUME_STEP);
 			changeVolumeText(newVolumeDown);
 			twitchPlayer.setVolume(newVolumeDown);
@@ -39,33 +37,38 @@ document.addEventListener('keydown', event => {
 		}
 
 		default: {
-			console.log('default');
+			break;
 		}
 	}
 });
+
 function changeVolumeText(volume) {
 	const volumeText = document.body.querySelector('.volumeText');
-	volumeText.textContent = Number.parseInt(volume * 100);
+	volumeText.textContent = Math.ceil(((volume * 100) / 5) * 5) + '%';
 	volumeText.classList.add('active');
-	setTimeout(() => {
+	if (removeTimeout) {
+		clearTimeout(removeTimeout);
+	}
+
+	removeTimeout = setTimeout(() => {
 		volumeText.classList.remove('active');
-	}, 1000);
+	}, 500);
 }
 
 function setUpVolumeText() {
-	const html = document.createElement('span');
-	html.classList.add('volumeText');
-	html.textContent = '100';
-	document.body.append(html);
+	const volumeText = document.createElement('span');
+	const volumeContainer = document.createElement('div');
+	volumeContainer.classList.add('volumeContainer');
+	volumeContainer.append(volumeText);
+	volumeText.classList.add('volumeText');
+	volumeText.textContent = '100';
+	document.body.querySelector('.persistent-player').append(volumeContainer);
 }
 
-// Helper function to get the Twitch player instance
 function getTwitchPlayer() {
-	// For embedded players
 	if (window.Twitch && window.Twitch.Player) {
 		const playerElements = document.querySelectorAll('[data-a-target="player-overlay-click-handler"]');
 		if (playerElements.length > 0) {
-			// Find the player in the Twitch objects
 			const videoController = findReactComponent(playerElements[0], 'VideoPlayerController');
 			if (videoController && videoController.props && videoController.props.mediaPlayerInstance) {
 				return videoController.props.mediaPlayerInstance;
@@ -73,7 +76,6 @@ function getTwitchPlayer() {
 		}
 	}
 
-	// Alternative method - access player through DOM
 	const video = document.querySelector('video');
 	if (video) {
 		return {
@@ -127,4 +129,23 @@ function findReactComponent(element, targetName) {
 	}
 
 	return null;
+}
+
+function waitForElm(selector) {
+	return new Promise(resolve => {
+		if (document.querySelector(selector)) {
+			resolve(document.querySelector(selector));
+		}
+
+		const observer = new MutationObserver(() => {
+			if (document.querySelector(selector)) {
+				observer.disconnect();
+				resolve(document.querySelector(selector));
+			}
+		});
+		observer.observe(document.body, {
+			childList: true,
+			subtree: true,
+		});
+	});
 }
