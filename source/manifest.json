@@ -6,7 +6,7 @@
 	"manifest_version": 2,
 	"browser_specific_settings": {
 		"gecko": {
-			"id": "{a0b675fe-bfff-4223-a597-6d4099e8c4b2}",
+			"id": "updown-twitch-vol@greeb",
 			"strict_min_version": "58.0"
 		}
 	},
